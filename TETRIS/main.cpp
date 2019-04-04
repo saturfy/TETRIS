@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thread> // for the game logic
 #include <Windows.h> // to grab the screen buffer
 using namespace std;
 // ------------------------IMPORTANT------------------------------- 
@@ -32,7 +33,38 @@ int Rotate(int px, int py, int r) {
 	}
 	return 0;
 }
+// Rotation is the position of the tetromino
+// posx posy is the left top part of the 4x4 square in which the tetromino travels
+// nTetromino is the tetromino type
+bool DoesPieceFit (int nTetromino, int nRotation, int nPosX, int nPosY)
+{
+	 for(int px = 0; px <4; px++)
+		 for (int py = 0; py < 4; py++)
+		 {
+			 // Get the correct (rotated) index of the piece which has to be loaded to different placed in the 4x4 suare
+			 int pi = Rotate(py, py, nRotation);
 
+			 // Get the index of the field which has to be loaded to the given point in the 4x4 squre
+			 int fi = (nPosY + py) * nFieldWidth + (nPosX + px);
+
+			 // Make sure we are not aout of bounds
+
+			 if (nPosX + px >= 0 && nPosX + px < nFieldWidth)
+			 {
+				 if (nPosY + py >= 0 && nPosY + py < nFieldHeight)
+				 {
+					 if (tetromino[nTetromino][pi] == L'X' && pField[fi] != 0)
+						 return false; // fail on first hit
+				 }
+			 }
+		  }
+
+
+
+
+
+	return true;
+}
 
 int main()
 {
@@ -104,12 +136,42 @@ int main()
 	SetConsoleActiveScreenBuffer(hConsole);
 	DWORD dwBytesWritten = 0;
 
+	//first we set the console size to fit the size we set here
+	SMALL_RECT consize;
+	consize.Top = 0;  // cooridnates of top left corner
+	consize.Left = 0;
+	consize.Right = nScreenWidth - 1;  // coordinates of bottom right corner
+	consize.Bottom = nScreenHeight - 1;
+	// then set the console size (handle, coordinate type: bsolute=TRUE, rect object gives size)
+	SetConsoleWindowInfo(hConsole, TRUE, &consize);
+
+	// Game logic stuff
+
+	int nCurrentPiece = 0; // type of the tetromino
+	int nCurrentRotation = 0;  // roation of the tetromino
+	int nCurrentX = nFieldWidth / 2; // the coordinates of the top left corner of the 4x4 termoino raster
+	int nCurrentY = 0;
+	bool bKey[4]; // vector to store the sate of the four keys
 	// The main game loop
 	bool bGameOVer = false;
-
+	
 	while (!bGameOVer)
 	{
-		//Draw field: fill the screen contents
+		// GAME TIMING======================================
+		this_thread::sleep_for(50ms); // one game tick 
+
+		// INPUT ===========================================
+		for (int k = 0; k < 4; k++)
+			// the function returns 1 if the buttion is pressed but it returns it in a way that the most significant bit is set in the retuned short
+			
+
+
+		// GAME LOGIC =======================================
+
+
+		// RENDER OUTPUT=====================================
+
+		//Draw the playing field into the buffer
 		for (int x = 0; x < nFieldWidth; x++) {
 			for (int y = 0; y < nFieldHeight; y++) {
 				// offset the screen so drawing of play area starts at 2nd coordinate
@@ -117,17 +179,12 @@ int main()
 			};
 		}
 
-		// Display Frame
-
-		//first we set the console size to fit the size we set here
-		SMALL_RECT consize;
-		consize.Top = 0;  // cooridnates of top left corner
-		consize.Left = 0;
-		consize.Right = nScreenWidth - 1;  // coordinates of bottom right corner
-		consize.Bottom = nScreenHeight - 1;
-		// then set the console size (handle, coordinate type: bsolute=TRUE, rect object gives size)
-		SetConsoleWindowInfo(hConsole, TRUE, &consize);
-		
+		// Draw the current piece into the buffer
+		for (int px = 0; px < 4; px++)
+			for (int py = 0; py < 4; py++)
+				if (tetromino[nCurrentPiece][Rotate(px, py, nCurrentRotation)] == L'X')
+					screen[(nCurrentY + py + 2)* nScreenWidth + (nCurrentX + px + 2)] = nCurrentPiece + 65; // This is the ASCII code of ABCDEF etc. to make number of the piece into characters
+			
 		//Draw the data to console
 		WriteConsoleOutputCharacter(hConsole, screen, nScreenWidth * nScreenHeight, { 0,0 }, &dwBytesWritten);
 
