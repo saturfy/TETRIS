@@ -1,6 +1,9 @@
 #include <iostream>
 #include <thread> // for the game logic
 #include <Windows.h> // to grab the screen buffer
+#include <vector>
+#include <stdio.h> // needed to use sprintf
+#include <wchar.h> // needed to set console font
 using namespace std;
 // ------------------------IMPORTANT------------------------------- 
 //we are using wchar_t whiuc is not UTF but unicode. This affects functions which load based on what is set in the compiler
@@ -116,7 +119,26 @@ int main()
 
 	// Creating play area: it contains only numbers and characters are associated to numbers when this list is drawn to screen buffer. 
 
-	pField = new unsigned char[nFieldHeight * nFieldWidth]; // dynamical allocation of memory for the game ara
+	wstring gr;    // this string here specifies what charcater we draw for a given number in the pField list. THe number corresponds to the place of the character in this string
+	gr.append(L" ");  // empty space
+	gr.append(L"\x25D8"); // tetromino 0
+	gr.append(L"\x25D8"); // tetromino 1
+	gr.append(L"\x25D8"); // tetromino 2
+	gr.append(L"\x25D8"); // tetromino 3
+	gr.append(L"\x25D8"); // tetromino 4
+	gr.append(L"\x25D8"); // tetromino 5
+	gr.append(L"\x25D8"); // tetromino 6
+	gr.append(L"="); // line completion
+	gr.append(L"\x2592"); // border
+
+	/*
+	zero is empty
+	last, 9 is the border
+	8 is the line symbol
+	letters are corresponding to tetromino
+	*/
+
+	pField = new unsigned char[nFieldHeight * nFieldWidth]; // dynamical allocation of memory for the game area
 	 // filling the array with data: borders and empty space inside
 	for (int x = 0; x < nFieldWidth; x++) {
 		for (int y = 0; y < nFieldHeight; y++) {
@@ -145,20 +167,52 @@ int main()
 	// then set the console size (handle, coordinate type: bsolute=TRUE, rect object gives size)
 	SetConsoleWindowInfo(hConsole, TRUE, &consize);
 
+	// set windows size
+	COORD wsize;
+	wsize.X = nScreenWidth;
+	wsize.X = nScreenHeight;
+	SetConsoleScreenBufferSize(hConsole, wsize);
+
+	// set console  font to the a type which looks better
+
+	CONSOLE_FONT_INFOEX cfi;   // this struct contains font data
+	cfi.cbSize = sizeof(cfi);
+	cfi.nFont = 0;								// Widht and height set to the same so everything looks like a square																
+	cfi.dwFontSize.X = 24;                   // Width of each character in the font 
+	cfi.dwFontSize.Y = 24;                  // Height
+	cfi.FontFamily = FF_DONTCARE;
+	cfi.FontWeight = FW_NORMAL;       // this is the boldness of the font
+	wcscpy_s(cfi.FaceName, L"Lucida Console"); // Choose your font
+	SetCurrentConsoleFontEx(hConsole, FALSE, &cfi);
+
 	// Game logic stuff
 
-	int nCurrentPiece = 0; // type of the tetromino
+	int nCurrentPiece = rand() % 7; // type of the first tetromino
 	int nCurrentRotation = 0;  // roation of the tetromino
 	int nCurrentX = nFieldWidth / 2; // the coordinates of the top left corner of the 4x4 termoino raster
 	int nCurrentY = 0;
 	bool bKey[4]; // vector to store the sate of the four keys the sring in the INPUT fucntion decides which element corresponds to which key
 	bool bRotateHold = false; // flag to see whether or not the user holds donw the rotate button. this is to stop the rotation in every game tick and rotates 1 times per key press
+	bool bLeftHold = false; // flags for the other keys. ONly keystrokes will move the piece, holding keys down wont WE DONT DO THIS FOR THE DOWN KEY
+	bool bRightHold = false;
+	bool bFastLeft = false;  // if the left or right button is hold down for a time we move the piece faster
+	bool bFastRight = false;
+	int nFastT = 3;  // number of game ticks after fast moving occurs
+	int nFastL = 0;  // counters for how long the button was pressed
+	int nFastR = 0;  // counters for how long the button was pressed
 	int nSpeed = 20; // the game speed in 50ms units
 	int nSpeedCounter = 0; // counters game ticks. When the speed equals game ticks the pieces are forced down on step
 	bool bForceDown = false;
 	// The main game loop
 	bool bGameOVer = false;
+
+	// keeping score
+	int nPieceCount = 0;
+	int nScore = 0;
+
 	
+	vector<int> vLines; // to store the completed lines
+
 	while (!bGameOVer)
 	{
 		// GAME TIMING======================================
@@ -178,29 +232,42 @@ int main()
 
 
 			*/                                           //
-			//                                                      R   L   D Z
-			bKey[k] = (0x8000 & GetAsyncKeyState((unsigned char)("\x27\x25\x28Z"[k]))) != 0;
+			//                                                      R   L   D  SPACEBAR
+			bKey[k] = (0x8000 & GetAsyncKeyState((unsigned char)("\x27\x25\x28\x20"[k]))) != 0;
 
 
 		// GAME LOGIC =======================================
 		// Decided what to do when keys pressed: check whether or not the piese would fit in the direction the player want to move it
 		if (bKey[1]) // left key
 		{
-			if (DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX - 1, nCurrentY))
+			if (!bLeftHold && DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX - 1, nCurrentY))
+			{
 				nCurrentX = nCurrentX - 1;
+				bLeftHold = true;
+			}
 		}
+		else
+			bLeftHold = false;
 
 		if (bKey[0]) // right key
 		{
-			if (DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX + 1, nCurrentY))
+			if (!bRightHold && DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX + 1, nCurrentY))
+			{
 				nCurrentX = nCurrentX + 1;
+				bRightHold = true;
+			}
 		}
+		else
+			bRightHold = false;
 
 		if (bKey[2]) // down key
 		{
-			if (DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1))
+			if ( DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1))
+			{
 				nCurrentY = nCurrentY + 1;
+			}
 		}
+		
 
 		if (bKey[3]) // Z key, rotation
 		{
@@ -231,11 +298,13 @@ int main()
 				for (int px = 0; px < 4; px++)
 					for (int py = 0; py < 4; py++)
 						if (tetromino[nCurrentPiece][Rotate(px, py, nCurrentRotation)] == L'X')  // we draw only when there is anything but '.' which represent empty space in tetromino definition
-							pField[(nCurrentY + py)* nFieldWidth + (nCurrentX + px)] = nCurrentPiece + 1; // This is the position in the string  ABCDEF we use to decide what character to draw
+							pField[(nCurrentY + py)* nFieldWidth + (nCurrentX + px)] = nCurrentPiece + 1; // This is the position in the string  gr  we use to decide what character to draw
 
-
-
-				// check have we got  any lines it is enough to check where the last tetromino stopped (this must be before we create a new one!!)
+				nPieceCount++; // counting the pieces 
+				if (nPieceCount % 10 == 0)     // we increase the speed after ten piece
+					if (nSpeed >= 10) nSpeed--; // the game speed increases from 1 force down step/ sec to 1 force down per 0.5 sec
+				
+												// check have we got  any lines it is enough to check where the last tetromino stopped (this must be before we create a new one!!)
 				for (int py = 0; py < 4; py++)
 					if (nCurrentY + py < nFieldHeight - 1) // check only check the parts which are in the playing field
 					{
@@ -243,11 +312,17 @@ int main()
 						for (int px = 1; px < nFieldWidth - 1; px++)  // check for zeros in the line
 							bline &= (pField[(nCurrentY + py) * nFieldWidth + px]) != 0; // right side is true when the current postision is not empty; than bline = bline & result  is true£; if bline becomes false it remains false no matter what becaus of the AND table
 					
-						if (bline) // if there is a line color it remove it. 
+						if (bline) // if there is a line color it We remove it later
+						{
 							for (int px = 1; px < nFieldWidth - 1; px++)
 								pField[(nCurrentY + py)* nFieldWidth + px] = 8; // set the field value to 8 which will be translated to a character when we draw
 
+							vLines.push_back(nCurrentY + py); // store the y coordinate of the completed line; the smaller ones are standing to the left
+						}
 					}
+
+				nScore += 25; // we give 25 pints per new piece
+				if (!vLines.empty()) nScore += (( vLines.size() * (200 + (vLines.size() - 1) * 100))/2 ); // we give 100 points for 1st line 200 more for second etc..
 
 				// choose next piece
 				nCurrentPiece = rand() % 7; 
@@ -266,11 +341,12 @@ int main()
 
 		// RENDER OUTPUT=====================================
 
-		//Draw the playing field into the buffer
+		//Draw the playing field into the buffer this is where we convert pField numbers into real characters
 		for (int x = 0; x < nFieldWidth; x++) {
 			for (int y = 0; y < nFieldHeight; y++) {
 				// offset the screen so drawing of play area starts at 2nd coordinate
-				screen[(y+2) * nScreenWidth + (x+2)] = L" ABCDEFG=#"[pField[y * nFieldWidth + x]];
+
+				screen[(y+2) * nScreenWidth + (x+2)] = (gr[pField[y * nFieldWidth + x]]);  // this is where we choose from the gr vector what to draw
 			};
 		}
 
@@ -278,11 +354,38 @@ int main()
 		for (int px = 0; px < 4; px++)
 			for (int py = 0; py < 4; py++)
 				if (tetromino[nCurrentPiece][Rotate(px, py, nCurrentRotation)] != L'.')  // we draw only when there is anything but '.' which represent empty space in tetromino definition
-					screen[(nCurrentY + py + 2)* nScreenWidth + (nCurrentX + px + 2)] = nCurrentPiece + 65; // This is the ASCII code of ABCDEF etc. to make number of the piece into characters
-			
+					screen[(nCurrentY + py + 2)* nScreenWidth + (nCurrentX + px + 2)] = gr[(nCurrentPiece + 1)]; // we look up from gr what character corresponds to this piece
+		
+		// draw score
+				swprintf_s(&screen[2*nScreenWidth + nFieldWidth + 2 + 2], 16, L"SCORE: %8d", nScore);  // pointer to output char buffer,size, format string, data
+
+		// Animate line completion
+		if (!vLines.empty())
+		{
+			// if we have completed lines, we do an animation. We draw the frame than wait to show it
+			WriteConsoleOutputCharacter(hConsole, screen, nScreenWidth * nScreenHeight, { 0,0 }, &dwBytesWritten);
+			this_thread::sleep_for(400ms); // Delay for a bit
+
+			// after we have shown the frame we delete the line we move everything down
+
+			for (auto &v : vLines)  // range based looping: auto element : container -> accesses each element if we use auto  & element : conatiner we just observe the elemenets ; v is reference for the element
+				for (int px = 1; px < nFieldWidth - 1; px++)
+				{
+					for (int py = v; py > 0; py--) // We jump to the upper most y line where we had a full line and move bacwards to redraw all lines
+						pField[py * nFieldWidth + px] = pField[(py - 1) * nFieldWidth + px];  // copy the contents of line above the full line into the full line
+					pField[px] = 0; // top row is set to zero
+				}
+			vLines.clear();
+		}
+
 		//Draw the data to console
 		WriteConsoleOutputCharacter(hConsole, screen, nScreenWidth * nScreenHeight, { 0,0 }, &dwBytesWritten);
 
 	}
+
+	// the game ended
+	CloseHandle(hConsole);
+	cout << "Game Over !! Score: " << nScore << endl;
+	system("pause");
 	return 0;
 }
