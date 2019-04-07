@@ -197,7 +197,7 @@ int main()
 	bool bRightHold = false;
 	bool bFastLeft = false;  // if the left or right button is hold down for a time we move the piece faster
 	bool bFastRight = false;
-	int nFastT = 3;  // number of game ticks after fast moving occurs
+	int nFastT = 5;  // number of game ticks after fast moving occurs
 	int nFastL = 0;  // counters for how long the button was pressed
 	int nFastR = 0;  // counters for how long the button was pressed
 	int nSpeed = 20; // the game speed in 50ms units
@@ -238,27 +238,65 @@ int main()
 
 		// GAME LOGIC =======================================
 		// Decided what to do when keys pressed: check whether or not the piese would fit in the direction the player want to move it
+		/*
+		In the case of left and right keys there is a feature that if you press it more than game tick * nSpeedT it turns on fast moving and the piece moves
+		into that direction as fast as possible. For shorter presses it just jumps one space. 
+
+		Every game tick the keys are checked. If the key is pressed we increase the time counter nFastL. (we do this only when bFastLeft is not already on)
+		If the counter reaches nSpeedT we turn on fast moving: bFastLeft = true, and reset the counter.
+		The piece moves if bfastleft is on, or the keystate is bLeftHold = false (this means it was pressed just right now)
+		we turn off fastmoving if the key is not released, which means bkey returned false.
+
+		*/
+		
 		if (bKey[1]) // left key
 		{
-			if (!bLeftHold && DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX - 1, nCurrentY))
+			if (!bFastLeft)
+			{
+				nFastL++;
+				if (nFastL == nFastT)
+				{
+					bFastLeft = true;
+					nFastL = 0;
+				}
+			}
+
+			if (( bFastLeft || !bLeftHold) && DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX - 1, nCurrentY))
 			{
 				nCurrentX = nCurrentX - 1;
 				bLeftHold = true;
 			}
 		}
 		else
+		{
 			bLeftHold = false;
+			bFastLeft = false;
+		}
 
 		if (bKey[0]) // right key
 		{
-			if (!bRightHold && DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX + 1, nCurrentY))
+			if (!bFastRight)
+			{
+				nFastR++;
+				if (nFastR == nFastT)
+				{
+					bFastRight = true;
+					nFastR = 0;
+				}
+			}
+			
+			if ((  bFastRight || !bRightHold) && DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX + 1, nCurrentY))
 			{
 				nCurrentX = nCurrentX + 1;
 				bRightHold = true;
 			}
 		}
 		else
+		{
 			bRightHold = false;
+			bFastRight = false;
+		}
+
 
 		if (bKey[2]) // down key
 		{
