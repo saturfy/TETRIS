@@ -197,7 +197,7 @@ int main()
 	bool bRightHold = false;
 	bool bFastLeft = false;  // if the left or right button is hold down for a time we move the piece faster
 	bool bFastRight = false;
-	int nFastT = 5;  // number of game ticks after fast moving occurs
+	int nFastT = 10;  // number of game ticks after fast moving occurs
 	int nFastL = 0;  // counters for how long the button was pressed
 	int nFastR = 0;  // counters for how long the button was pressed
 	int nSpeed = 20; // the game speed in 50ms units
