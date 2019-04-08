@@ -4,6 +4,7 @@
 #include <vector>
 #include <stdio.h> // needed to use sprintf
 #include <wchar.h> // needed to set console font
+#include <random>  
 using namespace std;
 // ------------------------IMPORTANT------------------------------- 
 //we are using wchar_t whiuc is not UTF but unicode. This affects functions which load based on what is set in the compiler
@@ -67,6 +68,17 @@ bool DoesPieceFit (int nTetromino, int nRotation, int nPosX, int nPosY)
 
 
 	return true;
+}
+
+// this funciton generates random numbers between 0 and 6
+int randomfunc()
+{
+	int rnum = 0;
+	random_device dev; // random device to seed the engine
+	mt19937 rng(dev());// random generator with seed
+	uniform_int_distribution<mt19937::result_type> dist6(0, 6);  // degines this random number distribuiton function which we can sample
+	rnum = dist6(rng);  // use the defined distribution to generate numbers
+	return rnum;
 }
 
 int main()
@@ -187,16 +199,17 @@ int main()
 
 	// Game logic stuff
 
-	int nCurrentPiece = rand() % 7; // type of the first tetromino
+	int nCurrentPiece = randomfunc(); // type of the first tetromino
 	int nCurrentRotation = 0;  // roation of the tetromino
 	int nCurrentX = nFieldWidth / 2; // the coordinates of the top left corner of the 4x4 termoino raster
 	int nCurrentY = 0;
-	bool bKey[4]; // vector to store the sate of the four keys the sring in the INPUT fucntion decides which element corresponds to which key
+	bool bKey[5]; // vector to store the sate of the four keys the sring in the INPUT fucntion decides which element corresponds to which key
 	bool bRotateHold = false; // flag to see whether or not the user holds donw the rotate button. this is to stop the rotation in every game tick and rotates 1 times per key press
 	bool bLeftHold = false; // flags for the other keys. ONly keystrokes will move the piece, holding keys down wont WE DONT DO THIS FOR THE DOWN KEY
 	bool bRightHold = false;
 	bool bFastLeft = false;  // if the left or right button is hold down for a time we move the piece faster
 	bool bFastRight = false;
+	bool bPausePress = false; // mimic pause buttion as a sticking button: if pressed remains pressed until another press
 	int nFastT = 10;  // number of game ticks after fast moving occurs
 	int nFastL = 0;  // counters for how long the button was pressed
 	int nFastR = 0;  // counters for how long the button was pressed
@@ -217,23 +230,28 @@ int main()
 	{
 		// GAME TIMING======================================
 		this_thread::sleep_for(50ms); // one game tick 
-		nSpeedCounter++;
-		bForceDown = (nSpeedCounter == nSpeed);
+		if (!bPausePress) // we count only when ther is no pause
+		{
+			nSpeedCounter++;
+			bForceDown = (nSpeedCounter == nSpeed);
+		}
+
+		
 
 		// INPUT ===========================================
 		// checks whether or not the given key was pressed
-		for (int k = 0; k < 4; k++)
+		for (int k = 0; k < 5; k++)
 			/*
 			getasynkeystate has retunr value short int 16 bit, and sets the highest bit to 1 if the buttin was pressed. So the return value is 1000 0000
 			Because of the way the negative number representation works this is the lowest possible negative value in short int. In hexadecimal 0x8000
 			The bitwise & operation just cheks this value. The mode to write hexadecimal codes of characters into strings is \x number, and this string is converted
 			to unsigned char which is used for the input to the system function.
-			The unsigned char can be used as int for small numbers
+			The unsigned char can be used as int for small numbers the != forces the conversion of bit number into a logical type variable
 
 
 			*/                                           //
-			//                                                      R   L   D  SPACEBAR
-			bKey[k] = (0x8000 & GetAsyncKeyState((unsigned char)("\x27\x25\x28\x20"[k]))) != 0;
+			//                                                      R   L   D  SPACEBAR ENTER
+			bKey[k] = (0x8000 & GetAsyncKeyState((unsigned char)("\x27\x25\x28\x20\x0D"[k]))) != 0;  // if you change this you have to change the one in the pause button code
 
 
 		// GAME LOGIC =======================================
@@ -251,6 +269,8 @@ int main()
 		
 		if (bKey[1]) // left key
 		{
+			bPausePress = false;  // we release thze pause button if any buttun pressed
+
 			if (!bFastLeft)
 			{
 				nFastL++;
@@ -275,6 +295,8 @@ int main()
 
 		if (bKey[0]) // right key
 		{
+			bPausePress = false;  // we release thze pause button if any buttun pressed
+
 			if (!bFastRight)
 			{
 				nFastR++;
@@ -300,6 +322,8 @@ int main()
 
 		if (bKey[2]) // down key
 		{
+			bPausePress = false;  // we release thze pause button if any buttun pressed
+			
 			if ( DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1))
 			{
 				nCurrentY = nCurrentY + 1;
@@ -307,8 +331,10 @@ int main()
 		}
 		
 
-		if (bKey[3]) // Z key, rotation
+		if (bKey[3]) // SPACEBAR key, rotation
 		{
+			bPausePress = false;  // we release thze pause button if any buttun pressed
+			
 			if (!bRotateHold && DoesPieceFit(nCurrentPiece, nCurrentRotation + 1, nCurrentX, nCurrentY)) //If the button was pressed we proceed to this check which fails when bRotateHold is ture
 			{
 				nCurrentRotation = nCurrentRotation + 1;
@@ -326,7 +352,14 @@ int main()
 		SO we have to release the button at least for one check to be able to rotate again. SO if you push it continously it will rotate only once. 
 		*/
 		
-		if (bForceDown) 
+		if (bKey[4]) // ENTER key, pause
+		{
+			
+			bPausePress = true;
+			
+		}
+
+		if (bForceDown && (! bPausePress)) 
 		{    // check wheter or not the piece can be forced down
 			if (DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1))
 				nCurrentY = nCurrentY + 1; // it moves down if it can
@@ -363,7 +396,7 @@ int main()
 				if (!vLines.empty()) nScore += (( vLines.size() * (200 + (vLines.size() - 1) * 100))/2 ); // we give 100 points for 1st line 200 more for second etc..
 
 				// choose next piece
-				nCurrentPiece = rand() % 7; 
+				nCurrentPiece = randomfunc();
 				nCurrentRotation = 0;  
 				nCurrentX = nFieldWidth / 2; 
 				nCurrentY = 0;
