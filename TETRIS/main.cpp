@@ -5,6 +5,8 @@
 #include <stdio.h> // needed to use sprintf
 #include <wchar.h> // needed to set console font
 #include <random>  
+#include <string>
+
 using namespace std;
 // ------------------------IMPORTANT------------------------------- 
 //we are using wchar_t whiuc is not UTF but unicode. This affects functions which load based on what is set in the compiler
@@ -201,6 +203,9 @@ int main()
 
 	int nCurrentPiece = randomfunc(); // type of the first tetromino
 	int nCurrentRotation = 0;  // roation of the tetromino
+	int nNextPiece = randomfunc();  // We store the next piece already so we can show itr to the player
+	int nNextPieceRotation = 0;
+
 	int nCurrentX = nFieldWidth / 2; // the coordinates of the top left corner of the 4x4 termoino raster
 	int nCurrentY = 0;
 	bool bKey[5]; // vector to store the sate of the four keys the sring in the INPUT fucntion decides which element corresponds to which key
@@ -395,11 +400,12 @@ int main()
 				nScore += 25; // we give 25 pints per new piece
 				if (!vLines.empty()) nScore += (( vLines.size() * (200 + (vLines.size() - 1) * 100))/2 ); // we give 100 points for 1st line 200 more for second etc..
 
-				// choose next piece
-				nCurrentPiece = randomfunc();
+				// copy next piece into current piece get new piece
+				nCurrentPiece = nNextPiece;
 				nCurrentRotation = 0;  
 				nCurrentX = nFieldWidth / 2; 
 				nCurrentY = 0;
+				nNextPiece = randomfunc();
 
 				// if piece does not fit we end the game
 				bGameOVer = !DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1);
@@ -428,7 +434,40 @@ int main()
 					screen[(nCurrentY + py + 2)* nScreenWidth + (nCurrentX + px + 2)] = gr[(nCurrentPiece + 1)]; // we look up from gr what character corresponds to this piece
 		
 		// draw score
-				swprintf_s(&screen[2*nScreenWidth + nFieldWidth + 2 + 2], 16, L"SCORE: %8d", nScore);  // pointer to output char buffer,size, format string, data
+		wstring sc = L"SCORE  ";
+		sc.append(to_wstring(nScore));
+		for (int l = 0; l < sc.length(); l++)
+		{
+			screen[2 * nScreenWidth + nFieldWidth + 4 + l] = sc[l];
+		}
+		
+		//swprintf_s(&screen[2*nScreenWidth + nFieldWidth + 2 + 2], 16, L"SCORE: %8d", nScore);  // pointer to output char buffer,size, format string, data
+		
+		// draw next piece  We place it next to the playing field
+				wstring np = L"NEXT PIECE";
+				for (int l = 0; l <  np.length(); l++)
+				{
+					screen[4 * nScreenWidth + nFieldWidth + 4 + l] = np[l];
+				}
+
+				//swprintf_s(&screen[4 * nScreenWidth + nFieldWidth + 4],16, L"%ls", np);
+				
+				for (int px = 0; px < 4; px++)
+				{
+					for (int py = 0; py < 4; py++)
+					{
+						if (tetromino[nNextPiece][Rotate(px, py, nNextPieceRotation)] != L'.')
+						{
+							screen[(py + 6) * nScreenWidth + (nFieldWidth + 3 + px)] = gr[(nCurrentPiece + 1)];
+						}
+						else  screen[(py + 6) * nScreenWidth + (nFieldWidth + 3 + px)] = ' ';  // clear old stuff
+					}
+				
+				}
+
+
+
+
 
 		// Animate line completion
 		if (!vLines.empty())

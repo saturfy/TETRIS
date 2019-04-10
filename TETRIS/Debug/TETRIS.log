@@ -1,2 +1,4 @@
 ﻿  main.cpp
+p:\prog\cpp_tutorials\projects\tetris\tetris\tetris\main.cpp(439): warning C4018: '<': signed/unsigned mismatch
+p:\prog\cpp_tutorials\projects\tetris\tetris\tetris\main.cpp(449): warning C4018: '<': signed/unsigned mismatch
   TETRIS.vcxproj -> P:\prog\cpp_tutorials\PROJECTS\TETRIS\TETRIS\Debug\TETRIS.exe
